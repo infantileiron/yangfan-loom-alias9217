@@ -2,7 +2,7 @@ from fastapi import HTTPException
 from sqlalchemy import select
 
 from src.models.database import engine, fetch_one
-from src.models.tables import audit, datasets, deliveries, runs, schedules
+from src.models.tables import audit, datasets, deliveries, runs, schedules, thresholds
 
 
 def list_rows(table, fields=None, limit=100):
@@ -26,6 +26,10 @@ def require_row(table, key, label):
 
 def jobs():
     return list_rows(runs, [field for field in runs.c if field.name != 'result'])
+
+
+def threshold_versions():
+    return list_rows(thresholds, [field for field in thresholds.c if field.name != 'content'])
 
 
 def delivery_status():

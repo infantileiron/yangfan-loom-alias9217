@@ -5,7 +5,9 @@ from sqlalchemy import and_, insert, or_, select, update
 
 from src.constants.enums import State
 from src.models.database import add_event, engine, fetch_one
-from src.models.tables import datasets, deliveries, runs, schedules
+from src.models.tables import datasets, deliveries, runs, schedules, thresholds
+from src.services.alias_calibration import calibrate
+from src.services.alias_validation import validate_options
 from src.services.data import parse_options
 
 
@@ -15,10 +17,35 @@ def add_run(body, actor):
     with engine.begin() as connection:
         if fetch_one(connection, datasets, body.dataset_id) is None:
             raise HTTPException(404, '数据版本不存在。')
-        key = connection.execute(insert(runs).values(dataset_id=body.dataset_id, options=options,
+        version = connection.execute(select(thresholds).where(thresholds.c.active == 1)
+                                     .order_by(thresholds.c.id.desc()).limit(1)).mappings().one_or_none()
+        locked = None
+        if version is not None:
+            locked = {'version': version['id'], 'dataset_id': version['dataset_id'],
+                      'hash_dimension': version['hash_dimension'], 'ngram_range': version['ngram_range'],
+                      'max_false_attach': version['content'].get('max_false_attach', 0),
+                      'manufacturers': version['content']['manufacturers']}
+        key = connection.execute(insert(runs).values(dataset_id=body.dataset_id, options=options, thresholds=locked,
                     state=State.queued.value, owner=actor, created=now)).inserted_primary_key[0]
         add_event(connection, actor, 'queue', key, now)
     return {'id': key, 'state': State.queued.value}
+
+
+def calibrate_thresholds(key, body, actor):
+    settings = validate_options(parse_options(body.options))
+    with engine.connect() as connection:
+        dataset = fetch_one(connection, datasets, key)
+    if dataset is None:
+        raise HTTPException(404, '数据版本不存在。')
+    content = calibrate(dataset['records'], settings)
+    now = time.time()
+    with engine.begin() as connection:
+        connection.execute(update(thresholds).values(active=0))
+        version = connection.execute(insert(thresholds).values(dataset_id=key, hash_dimension=settings.dimension,
+                                     ngram_range=f'2-{settings.max_ngram}', content=content, active=1,
+                                     owner=actor, created=now)).inserted_primary_key[0]
+        add_event(connection, actor, 'calibrate', version, now)
+    return {'id': version, 'active': True, 'manufacturers': content['manufacturers']}
 
 
 def claim_run():
@@ -34,7 +61,7 @@ def claim_run():
         if claim.rowcount != 1:
             return None
         data = fetch_one(connection, datasets, run['dataset_id'])
-        return key, now, data['records'], run['options']
+        return key, now, data['records'], run['options'], run['thresholds']
 
 
 def finish_run(key, claim, result, error):

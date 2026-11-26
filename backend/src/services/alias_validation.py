@@ -63,7 +63,7 @@ def _required(row: dict, key: str, label: str, line: int) -> str:
     return value.strip()
 
 
-def validate_rows(rows: list[dict]) -> tuple[list[PlateRecord], list[PlateRecord]]:
+def _parse_rows(rows: list[dict]) -> tuple[list[PlateRecord], list[PlateRecord]]:
     history: list[PlateRecord] = []
     incoming: list[PlateRecord] = []
     record_ids: set[str] = set()
@@ -96,6 +96,18 @@ def validate_rows(rows: list[dict]) -> tuple[list[PlateRecord], list[PlateRecord
         target.append(PlateRecord(
             record_id, batch_id, manufacturer, manufacturer_key, plate_text, normalized_plate, part_number
         ))
+    return history, incoming
+
+
+def validate_rows(rows: list[dict]) -> tuple[list[PlateRecord], list[PlateRecord]]:
+    history, incoming = _parse_rows(rows)
     if not history or not incoming:
         raise ValueError(f"请在同一份台账至少放入一条“{HISTORY}”和一条“{INCOMING}”。")
     return history, incoming
+
+
+def validate_history(rows: list[dict]) -> list[PlateRecord]:
+    history, _ = _parse_rows(rows)
+    if not history:
+        raise ValueError(f"数据版本缺少“{HISTORY}”记录，无法校准门槛。")
+    return history

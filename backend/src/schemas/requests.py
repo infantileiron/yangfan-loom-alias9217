@@ -19,6 +19,10 @@ class Run(BaseModel):
     options: dict = Field(default_factory=dict)
 
 
+class Calibration(BaseModel):
+    options: dict = Field(default_factory=dict)
+
+
 class Review(BaseModel):
     decision: Literal['approved', 'returned']
     note: str = Field(min_length=2, max_length=1000)

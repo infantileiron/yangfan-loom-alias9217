@@ -4,12 +4,12 @@ from fastapi import APIRouter, Depends, HTTPException, Response
 
 from src.config.settings import ARTIFACTS
 from src.constants.enums import Role
-from src.controllers.query import delivery_status, jobs, recent_activity, require_row, revisions
-from src.models.tables import datasets, runs
-from src.schemas.requests import Delivery, Import, Login, Review, Run
+from src.controllers.query import delivery_status, jobs, recent_activity, require_row, revisions, threshold_versions
+from src.models.tables import datasets, runs, thresholds
+from src.schemas.requests import Calibration, Delivery, Import, Login, Review, Run
 from src.services.data import PROFILE, csv_records, save_revision
 from src.services.domain import sample_rows
-from src.services.workflow import add_run, cancel_schedule, review_run, schedule_report
+from src.services.workflow import add_run, calibrate_thresholds, cancel_schedule, review_run, schedule_report
 from src.utils.exports import write_csv
 from src.utils.security import allowed, authenticate, signed_in
 
@@ -70,6 +70,21 @@ def list_runs(account=Depends(signed_in)):
 @router.post('/runs', status_code=202)
 def queue(body: Run, account=Depends(analyst)):
     return add_run(body, account['username'])
+
+
+@router.post('/datasets/{key}/calibrate', status_code=201)
+def calibrate(key: int, body: Calibration, account=Depends(analyst)):
+    return calibrate_thresholds(key, body, account['username'])
+
+
+@router.get('/thresholds')
+def list_thresholds(account=Depends(signed_in)):
+    return threshold_versions()
+
+
+@router.get('/thresholds/{key}')
+def get_threshold(key: int, account=Depends(signed_in)):
+    return require_row(thresholds, key, '门槛版本')
 
 
 @router.get('/runs/{key}')

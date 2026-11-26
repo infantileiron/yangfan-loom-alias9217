@@ -8,14 +8,13 @@ from sqlalchemy import text
 from scripts.seed_demo import seed
 from src.config.settings import SEED
 from src.middlewares.http import install
-from src.models.database import cache, engine
-from src.models.tables import metadata
+from src.models.database import cache, engine, ensure_schema
 from src.routes.api import router
 
 
 @asynccontextmanager
 async def lifespan(app):
-    metadata.create_all(engine)
+    ensure_schema()
     if SEED:
         try:
             logging.info('Demo seed: %s', seed())

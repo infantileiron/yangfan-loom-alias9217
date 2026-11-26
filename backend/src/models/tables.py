@@ -12,7 +12,13 @@ runs = Table('analysis_runs', metadata, Column('id', Integer, primary_key=True),
              Column('state', String(16), nullable=False, index=True), Column('owner', String(40), nullable=False),
              Column('created', Double, nullable=False), Column('started', Double), Column('finished', Double),
              Column('result', JSON), Column('error', Text), Column('decision', String(16)),
-             Column('reviewer', String(40)), Column('review_note', Text), Column('reviewed', Double))
+             Column('reviewer', String(40)), Column('review_note', Text), Column('reviewed', Double),
+             Column('thresholds', JSON))
+thresholds = Table('threshold_versions', metadata, Column('id', Integer, primary_key=True),
+                   Column('dataset_id', Integer, nullable=False, index=True),
+                   Column('hash_dimension', Integer, nullable=False), Column('ngram_range', String(8), nullable=False),
+                   Column('content', JSON, nullable=False), Column('active', Integer, nullable=False, index=True),
+                   Column('owner', String(40), nullable=False), Column('created', Double, nullable=False))
 schedules = Table('report_schedules', metadata, Column('id', Integer, primary_key=True),
                   Column('run_id', Integer, nullable=False), Column('recipient', String(100), nullable=False),
                   Column('cadence', String(16), nullable=False), Column('next_at', Double, nullable=False, index=True),
